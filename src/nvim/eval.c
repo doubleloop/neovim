@@ -5057,18 +5057,7 @@ static int free_unref_items(int copyID)
   }
 
   // Go through the list of lists and free items without the copyID.
-  // But don't free a list that has a watcher (used in a for loop), these
-  // are not referenced anywhere.
-  for (list_T *ll = gc_first_list; ll != NULL; ll = ll->lv_used_next) {
-    if ((tv_list_copyid(ll) & COPYID_MASK) != (copyID & COPYID_MASK)
-        && !tv_list_has_watchers(ll)) {
-      // Free the List and ordinary items it contains, but don't recurse
-      // into Lists and Dictionaries, they will be in the list of dicts
-      // or list of lists.
-      tv_list_free_contents(ll);
-      did_free = true;
-    }
-  }
+  did_free = did_free || tv_list_free_nonref(copyID);
 
   // PASS 2: free the items themselves.
   dict_T *dd_next;
@@ -5078,18 +5067,8 @@ static int free_unref_items(int copyID)
       tv_dict_free_dict(dd);
     }
   }
+  tv_list_free_items(copyID);
 
-  list_T *ll_next;
-  for (list_T *ll = gc_first_list; ll != NULL; ll = ll_next) {
-    ll_next = ll->lv_used_next;
-    if ((ll->lv_copyID & COPYID_MASK) != (copyID & COPYID_MASK)
-        && !tv_list_has_watchers(ll)) {
-      // Free the List and ordinary items it contains, but don't recurse
-      // into Lists and Dictionaries, they will be in the list of dicts
-      // or list of lists.
-      tv_list_free_list(ll);
-    }
-  }
   tv_in_free_unref_items = false;
   return did_free;
 }

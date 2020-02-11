@@ -319,6 +319,52 @@ void tv_list_free(list_T *const l)
   }
 }
 
+/// Go through the list of lists and free content of lists
+/// without the copyID. Skip lists that have a watcher
+/// (used in a for loop), these are not referenced anywhere.
+///
+/// @param[in]  copyID  copyID to preserve
+///
+/// @return   true if some list was freed, false otherwise
+bool tv_list_free_nonref(const int copyID)
+{
+  bool did_free = false;
+
+  for (list_T *ll = gc_first_list; ll != NULL; ll = ll->lv_used_next) {
+    if ((tv_list_copyid(ll) & COPYID_MASK) != (copyID & COPYID_MASK)
+        && !tv_list_has_watchers(ll)) {
+      // Free the List and ordinary items it contains, but don't recurse
+      // into Lists and Dictionaries, they will be in the list of dicts
+      // or list of lists.
+      tv_list_free_contents(ll);
+      did_free = true;
+    }
+  }
+  return did_free;
+}
+
+/// Go through the list of lists and free elements
+/// without the copyID. Skip lists that have a watcher
+/// (used in a for loop), these are not referenced anywhere.
+///
+/// @param[in]  copyID  copyID to preserve
+///
+/// @return   true if some list was freed, false otherwise
+void tv_list_free_items(const int copyID)
+{
+  list_T *ll_next;
+  for (list_T *ll = gc_first_list; ll != NULL; ll = ll_next) {
+    ll_next = ll->lv_used_next;
+    if ((tv_list_copyid(ll) & COPYID_MASK) != (copyID & COPYID_MASK)
+        && !tv_list_has_watchers(ll)) {
+      // Free the List and ordinary items it contains, but don't recurse
+      // into Lists and Dictionaries, they will be in the list of dicts
+      // or list of lists.
+      tv_list_free_list(ll);
+    }
+  }
+}
+
 /// Unreference a list
 ///
 /// Decrements the reference count and frees when it becomes zero or less.
