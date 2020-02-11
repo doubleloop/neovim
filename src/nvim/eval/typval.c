@@ -1437,6 +1437,45 @@ void tv_dict_free(dict_T *const d)
   }
 }
 
+/// Go through the list of dicts and free content of dicts
+/// without the copyID.
+/// Don't free dicts that are referenced internally.
+///
+/// @param[in]  copyID  copyID to preserve
+///
+/// @return   true if some dict was freed, false otherwise
+bool tv_dict_free_nonref(const int copyID)
+{
+  bool did_free = false;
+
+  for (dict_T *dd = gc_first_dict; dd != NULL; dd = dd->dv_used_next) {
+    if ((dd->dv_copyID & COPYID_MASK) != (copyID & COPYID_MASK)) {
+      // Free the Dictionary and ordinary items it contains, but don't
+      // recurse into Lists and Dictionaries, they will be in the list
+      // of dicts or list of lists.
+      tv_dict_free_contents(dd);
+      did_free = true;
+    }
+  }
+  return did_free;
+}
+
+/// Go through the list of dicts and free elements
+/// without the copyID.
+///
+/// @param[in]  copyID  copyID to preserve
+///
+/// @return   true if some dict was freed, false otherwise
+void tv_dict_free_items(const int copyID)
+{
+  dict_T *dd_next;
+  for (dict_T *dd = gc_first_dict; dd != NULL; dd = dd_next) {
+    dd_next = dd->dv_used_next;
+    if ((dd->dv_copyID & COPYID_MASK) != (copyID & COPYID_MASK)) {
+      tv_dict_free_dict(dd);
+    }
+  }
+}
 
 /// Unreference a dictionary
 ///

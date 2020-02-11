@@ -5045,28 +5045,13 @@ static int free_unref_items(int copyID)
   // themselves yet, so that it is possible to decrement refcount counters.
 
   // Go through the list of dicts and free items without the copyID.
-  // Don't free dicts that are referenced internally.
-  for (dict_T *dd = gc_first_dict; dd != NULL; dd = dd->dv_used_next) {
-    if ((dd->dv_copyID & COPYID_MASK) != (copyID & COPYID_MASK)) {
-      // Free the Dictionary and ordinary items it contains, but don't
-      // recurse into Lists and Dictionaries, they will be in the list
-      // of dicts or list of lists.
-      tv_dict_free_contents(dd);
-      did_free = true;
-    }
-  }
+  did_free = did_free || tv_dict_free_nonref(copyID);
 
   // Go through the list of lists and free items without the copyID.
   did_free = did_free || tv_list_free_nonref(copyID);
 
   // PASS 2: free the items themselves.
-  dict_T *dd_next;
-  for (dict_T *dd = gc_first_dict; dd != NULL; dd = dd_next) {
-    dd_next = dd->dv_used_next;
-    if ((dd->dv_copyID & COPYID_MASK) != (copyID & COPYID_MASK)) {
-      tv_dict_free_dict(dd);
-    }
-  }
+  tv_dict_free_items(copyID);
   tv_list_free_items(copyID);
 
   tv_in_free_unref_items = false;
